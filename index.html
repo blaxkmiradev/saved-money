@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="km">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Saved Money Dashboard</title>
+  <style>
+    :root { --bg:#0b1220; --card:#111a2e; --text:#e9eefc; --muted:#9fb0d0; --line:#223055; --good:#35d07f; --bad:#ff5a6a; }
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 600px at 20% 10%, #1b2a55, transparent 60%), var(--bg);color:var(--text)}
+    .wrap{max-width:980px;margin:0 auto;padding:22px}
+    .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .brand{display:flex;gap:10px;align-items:center}
+    .logo{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#6ea8ff,#8b5cff);box-shadow:0 10px 30px rgba(110,168,255,.22)}
+    .brand h1{font-size:18px;margin:0}
+    .brand p{margin:2px 0 0;color:var(--muted);font-size:12px}
+    .actions{display:flex;gap:8px;align-items:center}
+    button, input, select{font:inherit}
+    .btn{border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,.06)}
+    .btn.primary{border-color:transparent;background:linear-gradient(135deg,#6ea8ff,#8b5cff)}
+    .btn.danger{border-color:rgba(255,90,106,.35);background:rgba(255,90,106,.08)}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:16px}
+    @media (min-width:900px){.grid{grid-template-columns: 1.1fr .9fr}}
+    .card{background:rgba(17,26,46,.75);border:1px solid rgba(34,48,85,.7);border-radius:18px;padding:16px;backdrop-filter: blur(10px);box-shadow:0 18px 50px rgba(0,0,0,.25)}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .muted{color:var(--muted)}
+    .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .kpi .box{padding:12px;border-radius:16px;border:1px solid rgba(34,48,85,.7);background:rgba(255,255,255,.03)}
+    .kpi .box b{display:block;font-size:18px;margin-top:2px}
+    .kpi .box small{color:var(--muted)}
+    .form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .form .full{grid-column:1/-1}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:12px;color:var(--muted)}
+    .field input, .field select{padding:10px 12px;border-radius:12px;border:1px solid rgba(34,48,85,.9);background:rgba(0,0,0,.18);color:var(--text);outline:none}
+    .field input:focus, .field select:focus{border-color:rgba(110,168,255,.75)}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px;border-bottom:1px solid rgba(34,48,85,.7);text-align:left;font-size:14px}
+    th{color:var(--muted);font-weight:600}
+    .tag{padding:4px 8px;border-radius:999px;border:1px solid rgba(34,48,85,.7);font-size:12px;color:var(--muted)}
+    .pos{color:var(--good)} .neg{color:var(--bad)}
+    .hint{font-size:12px;color:var(--muted);margin-top:8px}
+    .sep{height:1px;background:rgba(34,48,85,.7);margin:12px 0}
+    .login{max-width:520px;margin:60px auto;padding:22px}
+    .footer{margin-top:16px;color:var(--muted);font-size:12px;text-align:center}
+    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(17,26,46,.92);border:1px solid rgba(34,48,85,.8);padding:10px 12px;border-radius:14px;display:none;gap:10px;align-items:center}
+    .toast.show{display:flex}
+  </style>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+  <div class="toast" id="toast">✅ <span id="toastText"></span></div>
+
+<script>
+(() => {
+  // ------- Simple local "auth" (NOT secure; for demo only) -------
+  // Default account: admin / 1234
+  const AUTH_KEY = "smd_auth_v1";
+  const DATA_KEY = "smd_data_v1";
+  const LANG_KEY = "smd_lang_v1";
+
+  const t = {
+    km: {
+      title: "Saved Money Dashboard",
+      subtitle: "រក្សាទុកជា JSON នៅក្នុង Browser (localStorage) — គ្មាន Database",
+      loginTitle: "Login",
+      username: "ឈ្មោះអ្នកប្រើ",
+      password: "ពាក្យសម្ងាត់",
+      loginBtn: "ចូលប្រព័ន្ធ",
+      logout: "Logout",
+      lang: "ភាសា",
+      add: "បន្ថែមប្រតិបត្តិការ",
+      type: "ប្រភេទ",
+      income: "ចំណូល",
+      expense: "ចំណាយ",
+      amount: "ចំនួន ($)",
+      note: "កំណត់ចំណាំ",
+      date: "កាលបរិច្ឆេទ",
+      save: "រក្សាទុក",
+      clear: "លុបទិន្នន័យទាំងអស់",
+      export: "Export JSON",
+      import: "Import JSON",
+      balance: "សមតុល្យ",
+      totalIncome: "ចំណូលសរុប",
+      totalExpense: "ចំណាយសរុប",
+      recent: "ប្រតិបត្តិការថ្មីៗ",
+      tip: "Tip: Export JSON ដើម្បី backup ហើយ Import ដើម្បី restore ✅",
+      badLogin: "Username/Password មិនត្រឹមត្រូវ",
+      saved: "បានរក្សាទុក!",
+      deleted: "បានលុបទិន្នន័យ!",
+      imported: "បាន Import!",
+      exported: "បាន Export!",
+    },
+    en: {
+      title: "Saved Money Dashboard",
+      subtitle: "Stored as JSON in your browser (localStorage) — No database",
+      loginTitle: "Login",
+      username: "Username",
+      password: "Password",
+      loginBtn: "Sign in",
+      logout: "Logout",
+      lang: "Language",
+      add: "Add transaction",
+      type: "Type",
+      income: "Income",
+      expense: "Expense",
+      amount: "Amount ($)",
+      note: "Note",
+      date: "Date",
+      save: "Save",
+      clear: "Clear all data",
+      export: "Export JSON",
+      import: "Import JSON",
+      balance: "Balance",
+      totalIncome: "Total income",
+      totalExpense: "Total expense",
+      recent: "Recent transactions",
+      tip: "Tip: Export JSON to backup and Import to restore ✅",
+      badLogin: "Invalid username/password",
+      saved: "Saved!",
+      deleted: "Deleted!",
+      imported: "Imported!",
+      exported: "Exported!",
+    }
+  };
+
+  const $ = (sel) => document.querySelector(sel);
+
+  function getLang() {
+    return localStorage.getItem(LANG_KEY) || "km";
+  }
+  function setLang(lang) {
+    localStorage.setItem(LANG_KEY, lang);
+    render();
+  }
+  function tr(key) {
+    const lang = getLang();
+    return (t[lang] && t[lang][key]) || key;
+  }
+
+  function toast(msg){
+    $("#toastText").textContent = msg;
+    const el = $("#toast");
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 1600);
+  }
+
+  function getAuth(){
+    try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; }
+  }
+  function setAuth(obj){
+    localStorage.setItem(AUTH_KEY, JSON.stringify(obj));
+  }
+  function logout(){
+    localStorage.removeItem(AUTH_KEY);
+    render();
+  }
+
+  function getData(){
+    try { return JSON.parse(localStorage.getItem(DATA_KEY) || '{"tx":[]}' ); } catch { return {tx:[]} }
+  }
+  function setData(data){
+    localStorage.setItem(DATA_KEY, JSON.stringify(data));
+  }
+
+  function calc(data){
+    let income = 0, expense = 0;
+    for(const x of data.tx){
+      const a = Number(x.amount)||0;
+      if(x.type === "income") income += a;
+      else expense += a;
+    }
+    return { income, expense, balance: income - expense };
+  }
+
+  function exportJSON(){
+    const data = getData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "saved-money.json";
+    a.click();
+    toast(tr("exported"));
+  }
+
+  function importJSON(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const obj = JSON.parse(reader.result);
+        if(!obj || !Array.isArray(obj.tx)) throw new Error("bad");
+        setData(obj);
+        toast(tr("imported"));
+        render();
+      }catch(e){
+        alert("Invalid JSON file");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function renderLogin(){
+    const app = $("#app");
+    app.innerHTML = `
+      <div class="card login">
+        <div class="top">
+          <div class="brand">
+            <div class="logo"></div>
+            <div>
+              <h1>${tr("loginTitle")}</h1>
+              <p class="muted">${tr("subtitle")}</p>
+            </div>
+          </div>
+
+          <div class="actions">
+            <span class="tag">${tr("lang")}</span>
+            <button class="btn" id="langBtn">${getLang()==="km" ? "KM" : "EN"}</button>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="field">
+          <label>${tr("username")}</label>
+          <input id="u" placeholder="admin" autocomplete="username" />
+        </div>
+
+        <div class="field" style="margin-top:10px;">
+          <label>${tr("password")}</label>
+          <input id="p" type="password" placeholder="1234" autocomplete="current-password" />
+        </div>
+
+        <div class="row" style="margin-top:14px;justify-content:space-between;">
+          <button class="btn primary" id="loginBtn">${tr("loginBtn")}</button>
+          <span class="hint">Demo: <b>admin / 1234</b></span>
+        </div>
+        <div class="footer">Made for Vercel • Single HTML file</div>
+      </div>
+    `;
+
+    $("#langBtn").onclick = () => setLang(getLang()==="km" ? "en" : "km");
+
+    $("#loginBtn").onclick = () => {
+      const u = $("#u").value.trim();
+      const p = $("#p").value.trim();
+      // demo credentials
+      if(u === "admin" && p === "1234"){
+        setAuth({user:u, at: Date.now()});
+        render();
+      }else{
+        alert(tr("badLogin"));
+      }
+    };
+  }
+
+  function renderApp(){
+    const app = $("#app");
+    const data = getData();
+    const stats = calc(data);
+    const lang = getLang();
+
+    // sort latest first
+    const tx = [...data.tx].sort((a,b) => (b.time||0)-(a.time||0)).slice(0,12);
+
+    app.innerHTML = `
+      <div class="top">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <h1>${tr("title")}</h1>
+            <p class="muted">${tr("subtitle")}</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="exportBtn">${tr("export")}</button>
+          <label class="btn" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+            ${tr("import")}
+            <input id="importFile" type="file" accept="application/json" style="display:none">
+          </label>
+          <button class="btn" id="clearBtn">${tr("clear")}</button>
+          <button class="btn" id="langBtn">${lang==="km" ? "KM" : "EN"}</button>
+          <button class="btn danger" id="logoutBtn">${tr("logout")}</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="kpi">
+            <div class="box">
+              <small>${tr("balance")}</small>
+              <b class="${stats.balance>=0 ? "pos":"neg"}">$${stats.balance.toFixed(2)}</b>
+            </div>
+            <div class="box">
+              <small>${tr("totalIncome")}</small>
+              <b class="pos">$${stats.income.toFixed(2)}</b>
+            </div>
+            <div class="box">
+              <small>${tr("totalExpense")}</small>
+              <b class="neg">$${stats.expense.toFixed(2)}</b>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+          <div class="row" style="justify-content:space-between;">
+            <b>${tr("add")}</b>
+            <span class="tag">✨ localStorage</span>
+          </div>
+
+          <form id="form" class="form">
+            <div class="field">
+              <label>${tr("type")}</label>
+              <select id="type">
+                <option value="income">${tr("income")}</option>
+                <option value="expense">${tr("expense")}</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>${tr("amount")}</label>
+              <input id="amount" type="number" step="0.01" min="0" placeholder="10.00" required />
+            </div>
+
+            <div class="field full">
+              <label>${tr("note")}</label>
+              <input id="note" placeholder="${lang==="km" ? "ឧ. ប្រាក់បាយ / ទិញកាហ្វេ" : "e.g. lunch / coffee"}" />
+            </div>
+
+            <div class="field">
+              <label>${tr("date")}</label>
+              <input id="date" type="date" required />
+            </div>
+
+            <div class="field" style="justify-content:flex-end">
+              <label>&nbsp;</label>
+              <button class="btn primary" type="submit">${tr("save")}</button>
+            </div>
+          </form>
+
+          <div class="hint">${tr("tip")}</div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="justify-content:space-between;">
+            <b>${tr("recent")}</b>
+            <span class="tag">${data.tx.length} tx</span>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>${tr("date")}</th>
+                <th>${tr("type")}</th>
+                <th>${tr("amount")}</th>
+                <th>${tr("note")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tx.length ? tx.map((x,i)=>`
+                <tr>
+                  <td>${escapeHtml(x.date || "")}</td>
+                  <td><span class="tag">${x.type==="income" ? tr("income") : tr("expense")}</span></td>
+                  <td class="${x.type==="income"?"pos":"neg"}">${x.type==="income" ? "+" : "-"}$${Number(x.amount||0).toFixed(2)}</td>
+                  <td>${escapeHtml(x.note||"")}</td>
+                </tr>
+              `).join("") : `<tr><td colspan="4" class="muted">No data yet…</td></tr>`}
+            </tbody>
+          </table>
+
+          <div class="hint">🔒 Note: This “login” is demo-only (client-side). For real security you need a backend.</div>
+        </div>
+      </div>
+
+      <div class="footer">Upload this single <b>index.html</b> to Vercel ✅</div>
+    `;
+
+    // defaults
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,"0");
+    const dd = String(today.getDate()).padStart(2,"0");
+    $("#date").value = `${yyyy}-${mm}-${dd}`;
+
+    $("#langBtn").onclick = () => setLang(lang==="km" ? "en" : "km");
+    $("#logoutBtn").onclick = logout;
+    $("#exportBtn").onclick = exportJSON;
+    $("#clearBtn").onclick = () => {
+      if(confirm("Delete all local data?")){
+        setData({tx:[]});
+        toast(tr("deleted"));
+        render();
+      }
+    };
+    $("#importFile").onchange = (e) => {
+      const f = e.target.files?.[0];
+      if(f) importJSON(f);
+      e.target.value = "";
+    };
+
+    $("#form").onsubmit = (e) => {
+      e.preventDefault();
+      const type = $("#type").value;
+      const amount = Number($("#amount").value);
+      const note = $("#note").value.trim();
+      const date = $("#date").value;
+
+      if(!date || !amount || amount < 0) return;
+
+      const d = getData();
+      d.tx.push({ type, amount, note, date, time: Date.now() });
+      setData(d);
+
+      $("#amount").value = "";
+      $("#note").value = "";
+      toast(tr("saved"));
+      render();
+    };
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (c)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function render(){
+    // set html lang
+    document.documentElement.lang = getLang();
+    const auth = getAuth();
+    if(!auth) renderLogin();
+    else renderApp();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
